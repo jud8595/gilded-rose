@@ -1,0 +1,24 @@
+OMGHAI!
+-------- day 0 --------
+name, sellIn, quality
++5 Dexterity Vest, 10, 20
+Aged Brie, 2, 0
+Elixir of the Mongoose, 5, 7
+Sulfuras, 0, 80
+Sulfuras, -1, 80
+Backstage passes, 15, 20
+Backstage passes, 10, 49
+Backstage passes, 5, 49
+Conjured Mana Cake, 3, 6
+
+-------- day 1 --------
+name, sellIn, quality
++5 Dexterity Vest, 9, 19
+Aged Brie, 1, 1
+Elixir of the Mongoose, 4, 6
+Sulfuras, 0, 80
+Sulfuras, -1, 80
+Backstage passes, 14, 21
+Backstage passes, 9, 50
+Backstage passes, 4, 50
+Conjured Mana Cake, 2, 5

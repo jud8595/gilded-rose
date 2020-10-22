@@ -1,0 +1,198 @@
+Notes:
+** should we factorize a snippet code which appears several times ?
+should we have: (we suppose here that we have a lot of this snippet code)
+	if (quality < 50) {
+		quality = quality + 1;
+	}
+or:
+	quality = increment(quality);
+	...
+	private int increment(int quality) {
+		if (quality < 50) {
+			return quality + 1;
+		} else {
+			return quality;
+		}
+        }
+=> The first one is telling what it does. The second one is hiding that it won't increment quality passed 50, which brings 3 issues:
+- First, it's hiding a business rule
+- Second, the method is lying
+- Third, the method is doing 2 things and should stay simple with one responsability
+So first solution is better. (NB: we can improve by doing "quality = max50(quality+1);" 
+
+
+** object structure should not leak into business logic
+should we have:
+        item.quality = updateQuality(item.quality, item.sellIn, item.name);
+        ...
+        private int updateQuality(int quality, int sellIn, String name) {}
+or:
+        item.quality = updateQuality(item);
+        ...
+        private int updateQuality(Item item) {}
+=> The second solution is more complex since the private method which is doing business things is also depending on Item structure. Try to avoid leaking object structure update/creation/iteration in the business rules.
+
+
+** object structure should not leak into business logic (2nd example)
+should we have:
+        return CreditDecisionResult.builder()
+                .decisions()
+			  .credit()
+			        .status(statusCalculator.getStatus(creditRules))
+				.rules(creditRules)
+			  .compliancy()
+			        .status(statusCalculator.getStatus(compliancyRules))
+			        .rules(compliancyRules)
+                .opportunityId(opportunity.getOpportunity().getId())
+                .registrationId(opportunity.getRegistrationId())
+                .build();
+or:
+        return CreditDecisionResult.builder()
+                .decisions(getDecisions(rules)
+                .opportunityId(opportunity.getOpportunity().getId())
+                .registrationId(opportunity.getRegistrationId())
+                .build();
+=> First solution is better, the construction of object doesn't leak into business logic.
+
+
+** we should try to have exclusive ifs
+should we have:
+	if (!name.equals("Sulfuras")
+			&& !name.equals("Aged Brie")
+			&& !name.equals("Backstage passes")) {
+		quality = quality - 1;
+	} else if (name.equals("Aged Brie")) {
+		quality = quality + 1;
+	} else if (name.equals("Backstage passes")) {
+		quality = 0;
+	}
+or:
+	if (name.equals("Aged Brie")) {
+		quality = quality + 1;
+	} else if (name.equals("Backstage passes")) {
+		quality = 0;
+	} else {
+		if (!name.equals("Sulfuras")) {
+			quality = quality - 1;
+		}
+	}
+=> The first solution is more understandable, because we want to know the general case and then deal with exceptions. But it's risky: for a new exception, we need to add it in two places: in the first if and in the else. 
+(Maybe we should accept that the general case is always in the else, so we must always begin by the else when reading a if. That makes sense. Maybe Java should have a structure "do {} except if {}")
+
+
+** we should avoid changing state of input data in an algorithm
+should we have:
+        if (name.equals("Aged Brie")) {
+            incr = 1;
+        }
+        sellIn = sellIn - 1;
+        if (sellIn < 0) {
+            if (name.equals("Aged Brie")) {
+                incr = 2;
+        }
+or:
+        if (name.equals("Aged Brie")) {
+            incr = 1;
+        }
+        if (sellIn <= 0) {
+            if (name.equals("Aged Brie")) {
+                incr = 2;
+            }
+        }
+        sellIn = sellIn - 1;
+=> In first solution, state of sellIn is changing in the middle of the algorithm, which makes the code very weak to block reorganization. Input data should not change while algorithm is running, only output data is allowed to change
+
+
+** we should avoid to have a if statement without else / try not to scatter code
+should we have:
+        if (name.equals("Aged Brie")) {
+            incr = 1;
+        }
+        if (sellIn <= 0) {
+            if (name.equals("Aged Brie")) {
+                incr = 2;
+            }
+        }
+or:
+        if (sellIn > 0) {
+            if (name.equals("Aged Brie")) {
+                incr = 1;
+            }
+        }
+        else {
+            if (name.equals("Aged Brie")) {
+                incr = 2;
+            }
+        }
+=> Second solution is more readable since we have less code to read. Business logic is not scattered in multiple sections. Sections of code are not depending on each oher so there are less side-effects.
+
+** exclusive ifs and else
+should we have:
+        quality = quality + 1;
+        if (sellIn <= 10) {
+                quality = quality + 1;
+        }
+        if (sellIn <= 5) {
+                quality = quality + 1;
+        }
+or:
+        if (sellIn <= 5) {
+                quality = quality + 3;
+        } else if (sellIn <= 10) {
+                quality = quality + 2;
+        } else {
+                quality = quality + 1;
+        }
+=> Here, we added else if structure, but ifs are not exclusive. I think it would be too cumbersome to read "else if (sellIn > 5 && sellIn <= 10).
+
+
+** we should not try to return multiple variables
+shoud we have:
+        return new Result(quality, sellIn);
+or:
+        return quality;
+=> First solution is often an indication that the code is doing two things. We should try, as much as possible, to have methods that only do one thing.
+
+
+** writing tests: There are several solutions:
+- write tests from the requirements. Good but what if the code is implementing an extra feature not listed in the requirements, we're going to loose that feature.
+- write tests from the code. You are covered against extra features, but it will take a very long time to write tests because you have first to understand the code. Approach is curious, since we are refactoring in the first place because the code is not well written.
+- write tests from an output program. That's actually very good, but when we compare program outputs, before and after refacto, not matching, it's hard to say what went wrong.
+NB: don't forget to have test coverage to 100% before starting refacto
+NB: even if we write tests from the code and the code coverage is 100%, be aware that we can introduce regressions. eg, we can change a < 0 to a <=0, and bring a regression if the case =0 is not covered.
+
+
+** should refactoring change the business understanding of the algorithm ?
+(Note that we have in our case to update the quality base on two arguments: the item name and the sellIn date)
+should we have: (testing sellIn first then name) 
+        if (sellIn > 0) {
+            if (name.equals("Aged Brie")) {
+                incr = 1;
+            } else {
+                incr = -1;
+            }
+        }
+        else {
+            if (name.equals("Aged Brie")) {
+                incr = 2;
+            } else {
+                incr = -2;
+            }
+        }
+or: (testing name first then sellIn)
+        if (name.equals("Aged Brie")) {
+            if (sellIn > 0) {
+                incr = 1;
+            } else {
+                incr = 2;
+            }
+        } else {
+            if (sellIn > 0) {
+                incr = -1;
+            } else {
+                incr = -2;
+            }
+        }
+=> No. If new features come and tell to add new items with no constraint based on sellIn date, then solution 2 is probably better. But, if a new feature says all item qualities drop to 0 passed 30 days, then solution 1 is probably better.
+So we can't say there is better solution, so the refacto should not change the way the algorithm is built ! It should only deal with technical enhancements.
+
